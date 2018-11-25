@@ -7,7 +7,7 @@ import torch.nn.functional as F
 import torch.optim as optim
 from torchvision import datasets, transforms
 
-from GaussianLayer import GaussianLayer
+from GaussianLayer import GaussianLayer as GaussianLayer
 
 class GaussianNet(nn.Module):
     def __init__(self):
@@ -15,8 +15,8 @@ class GaussianNet(nn.Module):
 
         self.in_shape = 28*28
 
-        h = [self.in_shape, 256, 128, 64]
-        k = [300, 200, 100]
+        h = [self.in_shape, 100, 128, 64]
+        k = [5000, 200, 100]
 
         self.gl0 = GaussianLayer(h[0], h[1], k[0], sigma_gamma=0.1)
         self.gl1 = GaussianLayer(h[1], h[2], k[1], sigma_gamma=0.1)
@@ -27,7 +27,7 @@ class GaussianNet(nn.Module):
 
     def forward(self, x):
         x = x.view(-1, self.in_shape)
-        x = F.relu(self.gl0(x))
+        x = F.tanh(self.gl0(x))
         # x = F.relu(self.gl1(x))
         # x = F.relu(self.gl2(x))
         x = F.relu(self.fc1(x))
@@ -89,7 +89,7 @@ def test(args, model, device, test_loader):
 def main():
     # Training settings
     parser = argparse.ArgumentParser(description='PyTorch MNIST Example')
-    parser.add_argument('--batch-size', type=int, default=1, metavar='N',
+    parser.add_argument('--batch-size', type=int, default=64, metavar='N',
                         help='input batch size for training (default: 64)')
     parser.add_argument('--test-batch-size', type=int, default=1000, metavar='N',
                         help='input batch size for testing (default: 1000)')

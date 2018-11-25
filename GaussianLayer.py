@@ -14,8 +14,9 @@ class GaussianLayer(Module):
 
         self.mus = Parameter(torch.rand(num_components, 2))
         # self.log_vars = Parameter(-5. - torch.rand(num_components, 2) / (2 * torch.sqrt(torch.Tensor([float(num_components)]))) * sigma_gamma)
-        self.log_vars = Parameter(0. - torch.rand(num_components, 2))
-        self.weights = Parameter((torch.rand(num_components)) )
+        log_var = (1 / torch.sqrt(torch.Tensor([float(num_components)]))).pow(2).log()
+        self.log_vars = Parameter(log_var - torch.rand(num_components, 2))
+        self.weights = Parameter(((torch.rand(num_components))-0.5))
 
         self.x_in_idx = torch.linspace(0, 1, self.in_features)
         self.x_out_idx = torch.linspace(0, 1, self.out_features)
@@ -46,5 +47,43 @@ class GaussianLayer(Module):
             result_prob = weighted_probs.sum(dim=-1)
             x_out[:, j] = result_prob / (self.in_features * self.weights.sum())
 
+        return x_out
+
+class GaussianLayer1(Module):
+    def __init__(self, in_features, out_features, num_components, sigma_gamma):
+        super(GaussianLayer1, self).__init__()
+        self.in_features = in_features
+        self.out_features = out_features
+        self.num_components = num_components
+        self.sigma_gamma = sigma_gamma
+
+        self.mus = Parameter(torch.rand(num_components, 2))
+        # self.log_vars = Parameter(-5. - torch.rand(num_components, 2) / (2 * torch.sqrt(torch.Tensor([float(num_components)]))) * sigma_gamma)
+        self.log_vars = Parameter(0. - torch.rand(num_components, 2))
+        self.weights = Parameter((torch.rand(num_components))-0.5 )
+        self.bias = Parameter((torch.rand(out_features))-0.5 )
+        self.x_in_idx = torch.linspace(0, 1, self.in_features)
+        self.x_out_idx = torch.linspace(0, 1, self.out_features)
+
+
+    def forward(self, x):
+        vars = self.log_vars.exp()
+        sigmas = vars.sqrt()
+
+        x_out = torch.zeros(x.shape[0], self.out_features)
+
+        for i in range(x.shape[0]):
+            x0 = x[i]
+            for j in range(self.out_features):
+                x1j = self.x_out_idx[j]
+
+                slice = torch.stack([x0, x1j.repeat(self.in_features)], dim=1)
+                for m in range(self.num_components):
+                    dist = Normal(self.mus[m], sigmas[m])
+                    log_probs = dist.log_prob(slice)
+                    log_probs = log_probs.sum(dim=-1)
+                    weighted_probs = log_probs.exp() * x0 * self.weights[m]
+                    x_out[i, j] += weighted_probs.sum()
+            x_out[i] += self.bias
         return x_out
 
