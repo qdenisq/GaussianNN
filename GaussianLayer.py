@@ -14,8 +14,8 @@ class GaussianLayer(Module):
 
         self.mus = Parameter(torch.rand(num_components, 2))
         # self.log_vars = Parameter(-5. - torch.rand(num_components, 2) / (2 * torch.sqrt(torch.Tensor([float(num_components)]))) * sigma_gamma)
-        self.log_vars = Parameter(-3. - torch.rand(num_components, 2))
-        self.weights = Parameter((torch.rand(num_components)) / (num_components))
+        self.log_vars = Parameter(0. - torch.rand(num_components, 2))
+        self.weights = Parameter((torch.rand(num_components)) )
 
         self.x_in_idx = torch.linspace(0, 1, self.in_features)
         self.x_out_idx = torch.linspace(0, 1, self.out_features)
