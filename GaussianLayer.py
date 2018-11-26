@@ -4,6 +4,8 @@ from torch.distributions import Normal
 import math
 import time
 
+torch.manual_seed(0)
+
 class GaussianLayer(Module):
     def __init__(self, in_features, out_features, num_components, sigma_gamma):
         super(GaussianLayer, self).__init__()
@@ -16,9 +18,9 @@ class GaussianLayer(Module):
         # self.log_vars = Parameter(-5. - torch.rand(num_components, 2) / (2 * torch.sqrt(torch.Tensor([float(num_components)]))) * sigma_gamma)
         log_var = (1 / torch.sqrt(torch.Tensor([float(num_components)]))).pow(2).log()
 
-
         self.log_vars = Parameter(log_var - torch.rand(num_components, 2))
         self.weights = Parameter(((torch.rand(num_components))-0.5))
+        self.bias = Parameter((torch.rand(out_features)) - 0.5)
 
         self.x_in_idx = torch.linspace(0, 1, self.in_features)
         self.x_out_idx = torch.linspace(0, 1, self.out_features)
@@ -34,6 +36,7 @@ class GaussianLayer(Module):
         t0 = time.time()
 
         C = torch.zeros(x.shape[0], self.num_components)
+
         for m in range(self.num_components):
             mu_x0 = self.mus[m, 0]
             deltas = (self.x_in_idx - mu_x0).pow(2)
@@ -54,7 +57,7 @@ class GaussianLayer(Module):
             x_out[:, j] = result_prob / (self.in_features * self.weights.sum())
 
         t2 = time.time()
-        # print(x.shape[0], t1-t0, t2 - t1)
+        print(x.shape[0], t2-t0, t1-t0, t2 - t1)
 
         return x_out
 
@@ -71,34 +74,36 @@ class GaussianLayer1(Module):
         # self.log_vars = Parameter(-5. - torch.rand(num_components, 2) / (2 * torch.sqrt(torch.Tensor([float(num_components)]))) * sigma_gamma)
         log_var = (1 / torch.sqrt(torch.Tensor([float(num_components)]))).pow(2).log()
         self.log_vars = Parameter(log_var - torch.rand(num_components, 2))
-        self.weights = Parameter((torch.rand(num_components)-0.5))
+        self.weights = Parameter((torch.rand(num_components)-0.5) )
         self.bias = Parameter((torch.rand(out_features))-0.5)
         self.x_in_idx = torch.linspace(0, 1, self.in_features)
         self.x_out_idx = torch.linspace(0, 1, self.out_features)
-
-        xv, yv = torch.meshgrid([self.x_in_idx, self.x_out_idx])
-        mesh = torch.stack([xv, yv], dim=2)
-        self.mesh_flat = mesh.view(-1, 2)
 
     def forward(self, x):
         vars = self.log_vars.exp()
         sigmas = vars.sqrt()
 
         t0 = time.time()
-        d = self.mesh_flat.view(self.mesh_flat.shape[0], 1, 2) - self.mus
-        t1 = time.time()
-        # log_prob = -d.pow(2) / (2 * vars) - torch.log(sigmas) - math.log(math.sqrt(2 * math.pi))
-        log_prob = -d.pow(2) / (2 * vars) - torch.log(sigmas) - math.log(math.sqrt(2 * math.pi))
 
-        t2 = time.time()
-        probs = log_prob.sum(dim=-1).exp()
-        weighted_probs = self.weights.unsqueeze(0).expand_as(probs) * probs
-        t3 = time.time()
-        ws = weighted_probs.sum(dim=-1).view(self.in_features, self.out_features)
-        x_out = torch.mm(x, ws) / (self.in_features * self.weights.sum()) + self.bias.view(1, self.out_features)
-        t4 = time.time()
-        print(x.shape[0], t1-t0, t2-t1, t3-t2, t4-t3)
-        return x_out
+        mus_x0 = self.mus[:,0]
+        deltas_x0 = (self.x_in_idx.view(-1, 1) - mus_x0).pow(2)
+        log_prob_x0 = -deltas_x0 / (2 * vars[:, 0])
+
+        mus_x1 = self.mus[:, 1]
+        deltas_x1 = (self.x_out_idx.view(-1, 1) - mus_x1).pow(2)
+        log_prob_x1 = -deltas_x1 / (2 * vars[:, 1])
+
+        log_prob_x1 = log_prob_x1.unsqueeze_(1)
+
+        log_probs = log_prob_x1 + log_prob_x0
+
+        probs = (log_probs.exp() * self.weights).sum(dim=-1)
+
+        x1 = torch.mm(x, probs.transpose(1, 0)) + self.bias
+
+        t1 = time.time()
+        # print(t1-t0)
+        return x1
 
 
 class GaussianLayer2(Module):

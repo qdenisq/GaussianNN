@@ -7,7 +7,7 @@ import torch.nn.functional as F
 import torch.optim as optim
 from torchvision import datasets, transforms
 
-from GaussianLayer import GaussianLayer as GaussianLayer
+from GaussianLayer import GaussianLayer1 as GaussianLayer
 import time
 
 class GaussianNet(nn.Module):
@@ -28,8 +28,8 @@ class GaussianNet(nn.Module):
 
     def forward(self, x):
         x = x.view(-1, self.in_shape)
-        x = F.relu(self.gl0(x))
-        x = F.relu(self.gl1(x))
+        x = F.tanh(self.gl0(x))
+        x = F.tanh(self.gl1(x))
         x = self.gl2(x)
         # # x = F.relu(self.gl1(x))
         # # x = F.relu(self.gl2(x))
