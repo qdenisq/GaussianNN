@@ -8,6 +8,7 @@ import torch.optim as optim
 from torchvision import datasets, transforms
 
 from GaussianLayer import GaussianLayer as GaussianLayer
+import time
 
 class GaussianNet(nn.Module):
     def __init__(self):
@@ -15,8 +16,8 @@ class GaussianNet(nn.Module):
 
         self.in_shape = 28*28
 
-        h = [self.in_shape, 100, 128, 64]
-        k = [5000, 200, 100]
+        h = [self.in_shape, 100, 50, 10]
+        k = [1000, 1000, 500]
 
         self.gl0 = GaussianLayer(h[0], h[1], k[0], sigma_gamma=0.1)
         self.gl1 = GaussianLayer(h[1], h[2], k[1], sigma_gamma=0.1)
@@ -27,31 +28,33 @@ class GaussianNet(nn.Module):
 
     def forward(self, x):
         x = x.view(-1, self.in_shape)
-        x = F.tanh(self.gl0(x))
-        # x = F.relu(self.gl1(x))
-        # x = F.relu(self.gl2(x))
-        x = F.relu(self.fc1(x))
-        x = F.dropout(x, training=self.training)
-        x = self.fc2(x)
+        x = F.relu(self.gl0(x))
+        x = F.relu(self.gl1(x))
+        x = self.gl2(x)
+        # # x = F.relu(self.gl1(x))
+        # # x = F.relu(self.gl2(x))
+        # x = F.relu(self.fc1(x))
+        # x = F.dropout(x, training=self.training)
+        # x = self.fc2(x)
         return F.log_softmax(x, dim=1)
 
 
 class Net(nn.Module):
     def __init__(self):
         super(Net, self).__init__()
-
-        self.conv1 = nn.Conv2d(1, 10, kernel_size=5)
-        self.conv2 = nn.Conv2d(10, 20, kernel_size=5)
-        self.conv2_drop = nn.Dropout2d()
-        self.fc1 = nn.Linear(320, 50)
-        self.fc2 = nn.Linear(50, 10)
+        #
+        # self.conv1 = nn.Conv2d(1, 10, kernel_size=5)
+        # self.conv2 = nn.Conv2d(10, 20, kernel_size=5)
+        # self.conv2_drop = nn.Dropout2d()
+        self.fc1 = nn.Linear(784, 20)
+        self.fc2 = nn.Linear(20, 10)
 
     def forward(self, x):
-        x = F.relu(F.max_pool2d(self.conv1(x), 2))
-        x = F.relu(F.max_pool2d(self.conv2_drop(self.conv2(x)), 2))
-        x = x.view(-1, 320)
+        # x = F.relu(F.max_pool2d(self.conv1(x), 2))
+        # x = F.relu(F.max_pool2d(self.conv2_drop(self.conv2(x)), 2))
+        x = x.view(-1, 784)
         x = F.relu(self.fc1(x))
-        x = F.dropout(x, training=self.training)
+        # x = F.dropout(x, training=self.training)
         x = self.fc2(x)
         return F.log_softmax(x, dim=1)
 
@@ -62,8 +65,11 @@ def train(args, model, device, train_loader, optimizer, epoch):
         optimizer.zero_grad()
         output = model(data)
         loss = F.nll_loss(output, target)
+        t0 = time.time()
         loss.backward()
         optimizer.step()
+        t1 = time.time()
+        # print("backprop: ", t1-t0)
         if batch_idx % args.log_interval == 0:
             print('Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
                 epoch, batch_idx * len(data), len(train_loader.dataset),
@@ -111,6 +117,7 @@ def main():
     torch.manual_seed(args.seed)
 
     device = torch.device("cuda" if use_cuda else "cpu")
+    device = torch.device("cpu")
 
     kwargs = {'num_workers': 1, 'pin_memory': True} if use_cuda else {}
     train_loader = torch.utils.data.DataLoader(

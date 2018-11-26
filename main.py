@@ -14,6 +14,7 @@ def random_activation(n_units):
 
 def generate_GMM(num_components, sigma_gamma=1.):
     mus = torch.rand(num_components, 2)
+    mus[:,0] = mus[:,1]
     sigmas = torch.rand(num_components, 2) / (2. * torch.sqrt(torch.tensor([float(num_components)]))) * sigma_gamma
     weights = torch.rand(num_components)
     dists = torch.distributions.Normal(mus, sigmas)
@@ -71,14 +72,14 @@ if __name__ == '__main__':
     num_input_units = 100
     num_output_units = 100
     x0 = random_activation(num_input_units)
-    # x0 = x0 * torch.linspace(0, 1, num_input_units)
+    x0 = x0 * torch.linspace(0, 1, num_input_units)
     # x0 = torch.ones(num_input_units)
 
     palette = sns.color_palette()
     plt.figure('input')
     sns.barplot(np.round(np.linspace(0, 1, num_input_units), 2), x0, color=palette[0])
 
-    d, mus, sigmas, weights = generate_GMM(100, 0.1)
+    d, mus, sigmas, weights = generate_GMM(100, 1.0)
     plot_gmm(d, weights)
 
     t0 = time.time()
