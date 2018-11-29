@@ -27,6 +27,9 @@ class GaussianLayer(Module):
 
 
     def forward(self, x):
+        self.x_in_idx = self.x_in_idx.to(self.device)
+        self.x_out_idx = self.x_out_idx.to(self.device)
+
         vars = self.log_vars.exp()
         sigmas = vars.sqrt()
 
@@ -80,6 +83,9 @@ class GaussianLayer1(Module):
         self.x_out_idx = torch.linspace(0, 1, self.out_features)
 
     def forward(self, x):
+        self.x_in_idx = self.x_in_idx.to(self.mus.device)
+        self.x_out_idx = self.x_out_idx.to(self.mus.device)
+
         vars = self.log_vars.exp()
         sigmas = vars.sqrt()
 
