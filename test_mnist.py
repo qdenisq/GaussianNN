@@ -8,7 +8,9 @@ import torch.optim as optim
 from torchvision import datasets, transforms
 
 from GaussianLayer import GaussianLayer1 as GaussianLayer
+from utils import sample_from_wgmm, plot_gmm
 import time
+import matplotlib.pyplot as plt
 
 class GaussianNet(nn.Module):
     def __init__(self):
@@ -117,7 +119,7 @@ def main():
     torch.manual_seed(args.seed)
 
     device = torch.device("cuda" if use_cuda else "cpu")
-    # device = torch.device("cpu")
+    device = torch.device("cpu")
 
     kwargs = {'num_workers': 1, 'pin_memory': True} if use_cuda else {}
     train_loader = torch.utils.data.DataLoader(
@@ -136,12 +138,20 @@ def main():
 
 
     model = GaussianNet().to(device)
+    plot_gmm(model.gl0.weights, model.gl0.mus, model.gl0.log_vars.exp().sqrt(), num_samples=1000)
+    plt.show(block = False)
+
+
+
     optimizer = optim.SGD(model.parameters(), lr=args.lr, momentum=args.momentum)
 
     for epoch in range(1, args.epochs + 1):
         train(args, model, device, train_loader, optimizer, epoch)
-        test(args, model, device, test_loader)
+        plot_gmm(model.gl0.weights, model.gl0.mus, model.gl0.log_vars.exp().sqrt(), num_samples=1000)
+        plt.show(block = False)
 
+        test(args, model, device, test_loader)
+    plt.show()
 
 if __name__ == '__main__':
     main()
