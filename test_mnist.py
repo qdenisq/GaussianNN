@@ -7,7 +7,7 @@ import torch.nn.functional as F
 import torch.optim as optim
 from torchvision import datasets, transforms
 
-from GaussianLayer import GaussianLayer1 as GaussianLayer
+from GaussianLayer import GaussianLayerBase as GaussianLayer
 from utils import sample_from_wgmm, plot_gmm
 import time
 import matplotlib.pyplot as plt
@@ -16,20 +16,20 @@ class GaussianNet(nn.Module):
     def __init__(self):
         super(GaussianNet, self).__init__()
 
-        self.in_shape = 28*28
+        self.in_shape = [28, 28]
 
-        h = [self.in_shape, 100, 50, 10]
-        k = [1000, 1000, 500]
+        h = [self.in_shape, [10, 10], [50], [10]]
+        k = [1000, 100, 50]
 
         self.gl0 = GaussianLayer(h[0], h[1], k[0], sigma_gamma=0.1)
         self.gl1 = GaussianLayer(h[1], h[2], k[1], sigma_gamma=0.1)
         self.gl2 = GaussianLayer(h[2], h[3], k[2], sigma_gamma=0.1)
 
-        self.fc1 = nn.Linear(h[1], 50)
-        self.fc2 = nn.Linear(50, 10)
+        # self.fc1 = nn.Linear(h[1], 50)
+        # self.fc2 = nn.Linear(50, 10)
 
     def forward(self, x):
-        x = x.view(-1, self.in_shape)
+        # x = x.view(-1, self.in_shape)
         x = F.tanh(self.gl0(x))
         x = F.tanh(self.gl1(x))
         x = self.gl2(x)
@@ -65,6 +65,7 @@ def train(args, model, device, train_loader, optimizer, epoch):
     for batch_idx, (data, target) in enumerate(train_loader):
         data, target = data.to(device), target.to(device)
         optimizer.zero_grad()
+        data = data.squeeze()
         output = model(data)
         loss = F.nll_loss(output, target)
         t0 = time.time()
@@ -138,8 +139,12 @@ def main():
 
 
     model = GaussianNet().to(device)
-    plot_gmm(model.gl0.weights, model.gl0.mus, model.gl0.log_vars.exp().sqrt(), num_samples=1000)
-    plt.show(block = False)
+
+    input_ones = torch.ones((1, 28, 28))
+    out = model(input_ones)
+
+    # plot_gmm(model.gl0.weights, model.gl0.mus, model.gl0.log_vars.exp().sqrt(), num_samples=1000)
+    # plt.show(block = False)
 
 
 
@@ -147,8 +152,8 @@ def main():
 
     for epoch in range(1, args.epochs + 1):
         train(args, model, device, train_loader, optimizer, epoch)
-        plot_gmm(model.gl0.weights, model.gl0.mus, model.gl0.log_vars.exp().sqrt(), num_samples=1000)
-        plt.show(block = False)
+        # plot_gmm(model.gl0.weights, model.gl0.mus, model.gl0.log_vars.exp().sqrt(), num_samples=1000)
+        # plt.show(block = False)
 
         test(args, model, device, test_loader)
     plt.show()

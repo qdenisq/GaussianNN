@@ -1,0 +1,35 @@
+{
+"env":{
+	"env_file": "C:/Study/udacity_p2_continious_control/Reacher_20_agent/Reacher.exe",
+	"seed": 1234
+	},
+
+"agent":{
+	"seed":0,
+	"hidden_size": [512, 256],
+	"k": [1000, 100]
+	},
+
+"ppo":{
+	"discount": 0.99,
+	"lambda": 0.0,
+	"epsilon": 0.2,
+	"beta": 0.0,
+	"learning_rate_eps": 1e-5,
+	"actor_lr": 0.0003,
+	"critic_lr": 0.0003,
+	"minibatch_size": 256,
+	"num_epochs_actor": 10,
+	"num_epochs_critic": 10,
+	"clip_grad": 5
+	},
+"ddpg":{
+	"discount": 0.99,
+	"tau": 0.001,
+	"buffer_size": 1e5,
+	"minibatch_size": 64,
+	"seed": 0,
+	"actor_lr": 0.0003,
+	"critic_lr": 0.0003
+	}
+}

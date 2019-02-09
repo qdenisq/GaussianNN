@@ -65,3 +65,4 @@ def plot_gmm(weights, mus, sigmas, num_samples=2000):
     with sns.axes_style('white'):
         sns.jointplot("x0", "x1", data, kind='kde')
         plt.title('weights')
+

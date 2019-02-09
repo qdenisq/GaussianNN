@@ -3,6 +3,7 @@ from torch.nn import Module, Parameter
 from torch.distributions import Normal
 import math
 import time
+import numpy as np
 
 torch.manual_seed(0)
 
@@ -66,17 +67,19 @@ class GaussianLayer(Module):
 
 
 class GaussianLayer1(Module):
-    def __init__(self, in_features, out_features, num_components, sigma_gamma):
+    def __init__(self, in_features, in_dim, out_features, out_dim, num_components, sigma_gamma):
         super(GaussianLayer1, self).__init__()
         self.in_features = in_features
         self.out_features = out_features
         self.num_components = num_components
         self.sigma_gamma = sigma_gamma
+        self.in_dim = in_dim
+        self.out_dim = out_dim
 
-        self.mus = Parameter(torch.rand(num_components, 2))
+        self.mus = Parameter(torch.rand(num_components, self.in_dim + self.out_dim))
         # self.log_vars = Parameter(-5. - torch.rand(num_components, 2) / (2 * torch.sqrt(torch.Tensor([float(num_components)]))) * sigma_gamma)
         log_var = (1 / torch.sqrt(torch.Tensor([float(num_components)]))).pow(2).log()
-        self.log_vars = Parameter(log_var - torch.rand(num_components, 2))
+        self.log_vars = Parameter(log_var - torch.rand(num_components, self.in_dim + self.out_dim))
         self.weights = Parameter((torch.rand(num_components)-0.5))
         self.bias = Parameter((torch.rand(out_features))-0.5)
         self.x_in_idx = torch.linspace(0, 1, self.in_features)
@@ -110,6 +113,80 @@ class GaussianLayer1(Module):
         t1 = time.time()
         # print(t1-t0)
         return x1
+
+
+class GaussianLayerBase(Module):
+    def __init__(self, in_shape, out_shape, num_components, sigma_gamma):
+        super(GaussianLayerBase, self).__init__()
+        self.in_shape = in_shape
+        self.out_shape = out_shape
+        self.num_components = num_components
+        self.sigma_gamma = sigma_gamma
+
+
+        self.in_dim = len(self.in_shape)
+        self.out_dim = len(self.out_shape)
+
+        self.num_in_units = np.prod(self.in_shape)
+        self.num_out_units = np.prod(self.out_shape)
+
+        self.mus = Parameter(torch.rand(num_components, self.in_dim + self.out_dim))
+        # self.log_vars = Parameter(-5. - torch.rand(num_components, 2) / (2 * torch.sqrt(torch.Tensor([float(num_components)]))) * sigma_gamma)
+        log_var = (1 / torch.sqrt(torch.Tensor([float(num_components)]))).pow(2).log()
+        self.log_vars = Parameter(log_var - torch.rand(num_components, self.in_dim + self.out_dim))
+        self.weights = Parameter((torch.rand(num_components)-0.5))
+
+        self.bias = Parameter((torch.rand(self.num_out_units))-0.5)
+
+        self.x_in_idx = [torch.linspace(0, 1, in_shape_i) for in_shape_i in self.in_shape]
+        self.x_out_idx = [torch.linspace(0, 1, out_shape_i) for out_shape_i in self.out_shape]
+
+    def forward(self, x):
+        batch_size = x.shape[0]
+        vars = self.log_vars.exp()
+        sigmas = vars.sqrt()
+
+        t0 = time.time()
+
+        log_probs = torch.zeros((self.num_components))
+
+        for i in range(self.in_dim):
+            mus_x_i = self.mus[:, i]
+            deltas_x_i = (self.x_in_idx[i].view(-1, 1) - mus_x_i).pow(2)
+            log_prob_x_i = -deltas_x_i / (2 * vars[:, i])
+            # log_prob_x_i = log_prob_x_i.transpose()
+            log_probs = log_probs.unsqueeze_(-2)
+            log_probs = log_probs + log_prob_x_i
+        # log_prob_x0 = log_prob_x_i
+
+        for j in range(self.out_dim):
+            mus_x_j = self.mus[:, self.in_dim + j]
+            deltas_x_j = (self.x_out_idx[j].view(-1, 1) - mus_x_j).pow(2)
+            log_prob_x_j = -deltas_x_j / (2 * vars[:, self.in_dim + j])
+            # log_prob_x_j = log_prob_x_j.transpose(0,1)
+            log_probs = log_probs.unsqueeze_(-2)
+            log_probs = log_probs + log_prob_x_j
+        # log_prob_x1 = log_prob_x_j.unsqueeze_(1)
+
+        # log_probs = log_prob_x1 + log_prob_x0
+
+        probs = (log_probs.exp() * self.weights).sum(dim=-1)
+
+        probs = probs.view(self.num_in_units, self.num_out_units)
+        x = x.view(batch_size, self.num_in_units)
+
+        x_out = torch.mm(x, probs) + self.bias
+        x_out = x_out.view(batch_size, *self.out_shape)
+
+        t1 = time.time()
+        # print(t1-t0)
+        return x_out
+
+    def to(self, *args, **kwargs):
+        super().to(*args, **kwargs)
+        if self.device != self.x_in_idx[0].device:
+            self.x_in_idx = [self.x_in_idx[i].to(self.device) for i in range(len(self.x_in_idx))]
+            self.x_out_idx = [self.x_out_idx[i].to(self.device) for i in range(len(self.x_out_idx))]
 
 
 class GaussianLayer2(Module):
